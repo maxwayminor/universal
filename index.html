@@ -476,6 +476,20 @@
                 <div id="testresults-list-container"></div>
             </div>
 
+            <!-- TAB 8: OMBOR (Napitkalar/Kuxnya - alohida astatka bo'limi) -->
+            <div id="tab-ombor" class="tab-content">
+                <div class="main-cats-grid" style="grid-template-columns: repeat(2, 1fr); margin-bottom: 15px;">
+                    <div class="main-cat-btn active" id="ombor-btn-kelgan" onclick="switchOmborMode('kelgan')">
+                        <h4>📦 Kelgan</h4>
+                    </div>
+                    <div class="main-cat-btn" id="ombor-btn-astatka" onclick="switchOmborMode('astatka')">
+                        <h4>📊 Astatka</h4>
+                    </div>
+                </div>
+                <button class="action-btn" id="ombor-edit-toggle-btn" style="display:none; margin-bottom:15px;" onclick="toggleOmborEditMode()">✎ Tahrirlash rejimi</button>
+                <div id="ombor-main-container"></div>
+            </div>
+
             <!-- Pastki Taskbar -->
             <div class="bottom-taskbar">
                 <div class="nav-item active" onclick="switchTab(0, this)">
@@ -489,6 +503,10 @@
                 <div class="nav-item" onclick="switchTab(2, this)">
                     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
                     <span>Smenalar</span>
+                </div>
+                <div class="nav-item" onclick="switchTab(7, this)">
+                    <svg viewBox="0 0 24 24"><path d="M20.5 7.27L12 2 3.5 7.27"></path><path d="M20.5 7.27L12 12l-8.5-4.73"></path><path d="M12 12v10"></path><path d="M20.5 7.27V17l-8.5 5-8.5-5V7.27"></path></svg>
+                    <span>Ombor</span>
                 </div>
                 <div class="nav-item" onclick="switchTab(5, this)">
                     <svg viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
@@ -816,6 +834,9 @@
         window.currentMainCategory = 'kelgan';
         window.currentAstView = 'categories';
         window.selectedCategoryKey = '';
+        window.omborStructure = {};
+        window.currentOmborView = 'categories';
+        window.selectedOmborCategoryKey = '';
         window.activeProductKey = '';
         window.astCalcVals = { keldi: '0', kechgi: '0' };
         window.astActiveField = 'keldi';
@@ -862,13 +883,17 @@
             "Холодильник камера": ["Кукуруза конс. 1 шт (280-340гр)", "Слив. масло Шедрое Лето", "Кетчуп (Острый Соус) 950гр", "Лаваш Соус MONARX", "Майонез клаб", "Майонез Чимбой", "Сашет \"Кисло Сладкий\"", "Сашет \"Соус Чили\"", "Сашет Кетчуп", "Сашет Сырный", "Сашет Чесночный", "Халапеньо шт (Сашет)", "Соус Чесночный 950гр", "Соус Special 950гр", "Соус Бургер Astoriya", "Лимон свежий", "Айсберг", "Кашнич/Кинза", "Молоко Nestle 3,2%, 1L.", "Сыр Cheddar", "Сыр хохланд", "Шницель 136гр", "Смесь пломбир", "Сосиски \"Country Maple", "Лаваш Большой", "Лаваш Большой Острый", "Лаваш большой сырный", "Лаваш Маленький", "Лаваш маленький сырный", "Капуста красная чищ", "Лук белый чищеный", "Огурцы корнишоны", "Огурцы свежие", "Помидоры свежие"],
             "Морозильник камера": ["Мясо для лаваша 70/30", "Донар куринный safi", "Котлет", "Наггетсы темпурные", "Стрпсы", "Картофель по деревенски", "Картофель фри", "Тортилья 10 дюм", "Сан Себастьян", "Тирамису", "Мусс Три школада", "Пончики"],
             "Холодильник кухонный 2": ["Сашет \"Кисло Сладкий\"", "Сашет \"Соус Чили\"", "Сашет Kетчуп", "Сашет Сырный", "Сашет Чесночный", "Халапеньо шт (Salet)", "Донар куринный safi", "Мясо донар жаренное", "Шницель 136гр", "Стрипсы"],
-            "Позиция клаб": ["Тостер хлеб", "Клаб коробка", "Коробка для снеков", "Коробка для фри маленькая", "Коробка для фри средняя", "Коробка фри большая", "Зубочистки клаб"],
-            "Напитки (Sklad)": {
+            "Позиция клаб": ["Тостер хлеб", "Клаб коробка", "Коробка для снеков", "Коробка для фри маленькая", "Коробка для фри средняя", "Коробка фри большая", "Зубочистки клаб"]
+        };
+        defaultAstatkaStructure = normalizeAstatkaStructure(defaultAstatkaStructure);
+
+        let defaultOmborStructure = {
+            "Kassa": {
                 "Напитки": ["Постмикс Coca Cola", "Сироп Гранат THE SYRUP", "Сироп Манго THE SYRUP", "Сироп Мохито THE SYRUP"],
                 "Напитки пэт": ["Bonaqua 0,5 л/ без газ", "Кола Zero 0,5 (Shakarsiz)", "Фанта 0,5 л", "Fuse Tea 0,5 W.MELON", "Мультифрукт 1Л Сок Dena", "Яблоко мини 0,2л сок...", "Fuse Tea 0,5 лимон", "Мультифрукт мини 0,2л...", "Яблочный 1Л Сок Dena", "Fuse Tea 0,5 манго-ананас", "Сок Dena Ананасовый-Яблоко 1Л.", "Fuse Tea 0,5 манго-...", "Сок Dena Апельсин 1Л.", "Fuse Tea 0,5 персик", "Сок Dena Вишня-яблоко 1Л.", "Кола 0,5 л", "Сок Dena Персик 1Л.", "Кола 1,5 л", "Спрайт 0,5 л"],
                 "Чай/ Кофе/Десерты": ["Кофе зерновой", "Чай Greenfield, Зеленый (пакетик) стаф", "Чай черный Greenfield Earl Grey (пакетированный) стаф"]
             },
-            "Kuxnya": {
+            "Kuhniya": {
                 "Десерты": ["Мусс \"Три Шоколада\" 120гр. MW", "Топинг Шоколад", "Пончики", "Рожок стаканчик \"о\"", "Сан Себастьян 120гр. MW", "Смесь пломбир ж", "Тирамису 120гр. MW", "Топинг Карамель", "Топинг Лесная Ягода"],
                 "Масло": ["Масло растительное", "Слив. масло Шедрое Лето/ Max Way", "Фритюрная смесь Вегафрай-05/ ЕМКОСТЬ=7,5Л. \"р\""],
                 "Мясо": ["Донар Куринный Safi", "Стрипсы \"SAFI\"-\"ZO'R\"", "Котлеты мясные Vivid 105гр.", "Шницель 136гр/ \"SAFI\"-\"ZO'R\"", "Мясо для лаваша 70/30 (красная упак.)", "Наггетсы темпурные флоупак 2кг/ Серволюкс"],
@@ -885,7 +910,7 @@
                 "Картофель": ["Картофель по деревенски 2,5кг/Max Way", "Картофель Фри с панировкой 6х6мм Фрай МИ/FMS6"]
             }
         };
-        defaultAstatkaStructure = normalizeAstatkaStructure(defaultAstatkaStructure);
+        defaultOmborStructure = normalizeAstatkaStructure(defaultOmborStructure);
 
         function normalizeAstatkaStructure(structure) {
             Object.keys(structure).forEach(catName => {
@@ -896,8 +921,8 @@
             return structure;
         }
 
-        function getAllProductNamesInCategory(catName) {
-            let subcats = window.astatkaStructure[catName] || {};
+        function getAllProductNamesInCategory(catName, structure) {
+            let subcats = (structure || window.astatkaStructure)[catName] || {};
             let all = [];
             Object.keys(subcats).forEach(subName => {
                 (subcats[subName] || []).forEach(p => all.push(p));
@@ -921,7 +946,9 @@
                     employeeGroups: [],
                     testResults: [],
                     directorPassword: '1234',
-                    astatkaStructure: defaultAstatkaStructure
+                    astatkaStructure: defaultAstatkaStructure,
+                    omborStructure: defaultOmborStructure,
+                    sklad_v2_extracted: true
                 });
             } else {
                 // Eski (flat) tuzilmadan yangi (kunlik) tuzilmaga migratsiya
@@ -954,12 +981,35 @@
                     mergeUpdate.employeeGroups = [];
                     needsMerge = true;
                 }
-                if (data.astatkaStructure && !data.sklad_v2_merged) {
-                    let merged = { ...data.astatkaStructure };
-                    merged["Напитки (Sklad)"] = defaultAstatkaStructure["Напитки (Sklad)"];
-                    merged["Kuxnya"] = defaultAstatkaStructure["Kuxnya"];
-                    mergeUpdate.astatkaStructure = merged;
-                    mergeUpdate.sklad_v2_merged = true;
+                if (!data.sklad_v2_extracted) {
+                    // "Напитки (Sklad)" va "Kuxnya" endi alohida Ombor bo'limiga ko'chirildi -
+                    // agar oldingi versiyada astatkaStructure ichiga qo'shilgan bo'lsa, u yerdan olib tashlaymiz
+                    let astStruct = { ...(mergeUpdate.astatkaStructure || data.astatkaStructure || defaultAstatkaStructure) };
+                    delete astStruct["Напитки (Sklad)"];
+                    delete astStruct["Kuxnya"];
+                    mergeUpdate.astatkaStructure = astStruct;
+                    if (!data.omborStructure) {
+                        mergeUpdate.omborStructure = defaultOmborStructure;
+                    }
+                    mergeUpdate.sklad_v2_extracted = true;
+                    needsMerge = true;
+                } else if (!data.omborStructure) {
+                    mergeUpdate.omborStructure = defaultOmborStructure;
+                    needsMerge = true;
+                }
+                // "Напитки (Sklad)" / "Kuxnya" nomlarini "Kassa" / "Kuhniya" ga o'zgartirish migratsiyasi
+                let omborForRename = mergeUpdate.omborStructure || data.omborStructure;
+                if (omborForRename && (omborForRename["Напитки (Sklad)"] || omborForRename["Kuxnya"])) {
+                    let renamed = { ...omborForRename };
+                    if (renamed["Напитки (Sklad)"] && !renamed["Kassa"]) {
+                        renamed["Kassa"] = renamed["Напитки (Sklad)"];
+                        delete renamed["Напитки (Sklad)"];
+                    }
+                    if (renamed["Kuxnya"] && !renamed["Kuhniya"]) {
+                        renamed["Kuhniya"] = renamed["Kuxnya"];
+                        delete renamed["Kuxnya"];
+                    }
+                    mergeUpdate.omborStructure = renamed;
                     needsMerge = true;
                 }
                 if (needsMerge) await setDoc(docRef, mergeUpdate, { merge: true });
@@ -978,6 +1028,7 @@
                     window.testResults = data.testResults || [];
                     window.directorPassword = data.directorPassword || '1234';
                     window.astatkaStructure = normalizeAstatkaStructure(data.astatkaStructure || defaultAstatkaStructure);
+                    window.omborStructure = normalizeAstatkaStructure(data.omborStructure || defaultOmborStructure);
 
                     updateLoginSelect();
                     renderEmployeeList();
@@ -991,6 +1042,13 @@
                             renderAstatkaProducts(window.selectedCategoryKey);
                         } else {
                             renderAstatkaCategories();
+                        }
+                        if (document.getElementById('tab-ombor').classList.contains('active-tab')) {
+                            if (window.currentOmborView === 'products') {
+                                renderOmborProducts(window.selectedOmborCategoryKey);
+                            } else {
+                                renderOmborCategories();
+                            }
                         }
                         refreshMyShiftStatus();
                         if (document.getElementById('tab-attendance').classList.contains('active-tab')) {
@@ -1021,9 +1079,14 @@
                 employeeGroups: window.employeeGroups,
                 testResults: window.testResults,
                 directorPassword: window.directorPassword,
-                astatkaStructure: window.astatkaStructure
+                astatkaStructure: window.astatkaStructure,
+                omborStructure: window.omborStructure
             });
         }
+
+        window.addEventListener('error', function(event) {
+            console.error('Global xatolik:', event.error || event.message);
+        });
 
         window.addEventListener('load', async function() {
             const loadingWatchdog = setTimeout(() => {
@@ -1238,6 +1301,7 @@
                 container.appendChild(card);
             });
         }
+        window.renderAstatkaCategories = renderAstatkaCategories;
 
         function renderAstatkaProducts(catName) {
             window.currentAstView = 'products';
@@ -1288,6 +1352,339 @@
                 });
             });
         }
+
+        // ================= OMBOR (Napitkalar/Kuxnya) - alohida taskbar bo'limi =================
+        window.switchOmborMode = function(mode) {
+            if (mode === 'kelgan' || mode === 'astatka') {
+                window.currentMainCategory = mode;
+            }
+            document.getElementById('ombor-btn-kelgan').classList.toggle('active', window.currentMainCategory === 'kelgan');
+            document.getElementById('ombor-btn-astatka').classList.toggle('active', window.currentMainCategory === 'astatka');
+            renderOmborCategories();
+        }
+
+        window.refreshOmborView = function() {
+            if (window.currentMainCategory !== 'kelgan' && window.currentMainCategory !== 'astatka') {
+                window.currentMainCategory = 'kelgan';
+            }
+            document.getElementById('ombor-btn-kelgan').classList.toggle('active', window.currentMainCategory === 'kelgan');
+            document.getElementById('ombor-btn-astatka').classList.toggle('active', window.currentMainCategory === 'astatka');
+            if (window.currentOmborView === 'products') {
+                renderOmborProducts(window.selectedOmborCategoryKey);
+            } else {
+                renderOmborCategories();
+            }
+        }
+
+        function renderOmborCategories() {
+            window.currentOmborView = 'categories';
+            const container = document.getElementById('ombor-main-container');
+            container.innerHTML = "";
+
+            const editBtn = document.getElementById('ombor-edit-toggle-btn');
+            if (editBtn) {
+                editBtn.style.display = isDirectorOrAdmin() ? 'block' : 'none';
+                editBtn.textContent = window.omborEditMode ? '✔ Tahrirlashni tugatish' : '✎ Tahrirlash rejimi';
+            }
+            const canEdit = isDirectorOrAdmin() && window.omborEditMode;
+
+            if (canEdit) {
+                let addBtn = document.createElement('button');
+                addBtn.className = 'action-btn';
+                addBtn.style.cssText = "margin-bottom:15px;";
+                addBtn.textContent = "+ Yangi kategoriya qo'shish";
+                addBtn.onclick = () => addOmborCategory();
+                container.appendChild(addBtn);
+            }
+
+            Object.keys(window.omborStructure).forEach(catName => {
+                let card = document.createElement('div');
+                card.className = 'employee-card';
+                let titlePrefix = window.currentMainCategory === 'kelgan' ? '📦 Kelgan:' : '📊 Astatka:';
+
+                let infoDiv = document.createElement('div');
+                infoDiv.className = 'employee-info';
+                infoDiv.innerHTML = `<h3>📂 ${catName}</h3><span class="employee-role">${titlePrefix} (${getAllProductNamesInCategory(catName, window.omborStructure).length} ta mahsulot)</span>`;
+                card.appendChild(infoDiv);
+
+                let actionsDiv = document.createElement('div');
+                actionsDiv.style.cssText = "display:flex; align-items:center; gap:12px;";
+
+                if (canEdit) {
+                    let renameBtn = document.createElement('button');
+                    renameBtn.textContent = '✎';
+                    renameBtn.style.cssText = "background:none;border:none;color:#fccf0d;cursor:pointer;font-size:15px;";
+                    renameBtn.onclick = (e) => { e.stopPropagation(); renameOmborCategory(catName); };
+                    actionsDiv.appendChild(renameBtn);
+
+                    let delBtn = document.createElement('button');
+                    delBtn.textContent = '🗑';
+                    delBtn.style.cssText = "background:none;border:none;color:#e74c3c;cursor:pointer;font-size:15px;";
+                    delBtn.onclick = (e) => { e.stopPropagation(); deleteOmborCategory(catName); };
+                    actionsDiv.appendChild(delBtn);
+                } else {
+                    let openSpan = document.createElement('span');
+                    openSpan.style.cssText = "color:#fccf0d; font-size:13px; font-weight:600;";
+                    openSpan.innerHTML = "Ochish &#8594;";
+                    actionsDiv.appendChild(openSpan);
+                }
+
+                card.appendChild(actionsDiv);
+                card.onclick = () => renderOmborProducts(catName);
+                container.appendChild(card);
+            });
+        }
+        window.renderOmborCategories = renderOmborCategories;
+
+        window.omborEditMode = false;
+        window.toggleOmborEditMode = function() {
+            if (!isDirectorOrAdmin()) return;
+            window.omborEditMode = !window.omborEditMode;
+            if (window.currentOmborView === 'products') {
+                renderOmborProducts(window.selectedOmborCategoryKey);
+            } else {
+                renderOmborCategories();
+            }
+        }
+
+        window.addOmborCategory = async function() {
+            if (!isDirectorOrAdmin()) return;
+            let name = prompt("Yangi kategoriya nomini kiriting:");
+            if (!name) return;
+            name = name.trim();
+            if (!name) return;
+            if (window.omborStructure[name]) { alert("Bu nomdagi kategoriya allaqachon mavjud!"); return; }
+            window.omborStructure[name] = { "Asosiy": [] };
+            await window.saveToFirestore();
+            renderOmborCategories();
+        }
+
+        window.renameOmborCategory = async function(oldName) {
+            if (!isDirectorOrAdmin()) return;
+            let name = prompt("Kategoriya uchun yangi nom kiriting:", oldName);
+            if (!name) return;
+            name = name.trim();
+            if (!name || name === oldName) return;
+            if (window.omborStructure[name]) { alert("Bu nomdagi kategoriya allaqachon mavjud!"); return; }
+            const reordered = {};
+            Object.keys(window.omborStructure).forEach(k => {
+                reordered[k === oldName ? name : k] = window.omborStructure[k];
+            });
+            window.omborStructure = reordered;
+            await window.saveToFirestore();
+            renderOmborCategories();
+        }
+
+        window.deleteOmborCategory = async function(catName) {
+            if (!isDirectorOrAdmin()) return;
+            let count = getAllProductNamesInCategory(catName, window.omborStructure).length;
+            if (!confirm(`"${catName}" kategoriyasini${count ? ' (' + count + ' ta mahsulot bilan birga)' : ''} butunlay o'chirmoqchimisiz?`)) return;
+            delete window.omborStructure[catName];
+            await window.saveToFirestore();
+            renderOmborCategories();
+        }
+
+        window.addOmborSubcategory = async function(catName) {
+            if (!isDirectorOrAdmin()) return;
+            let name = prompt("Yangi kichik kategoriya nomini kiriting:");
+            if (!name) return;
+            name = name.trim();
+            if (!name) return;
+            if (!window.omborStructure[catName]) window.omborStructure[catName] = {};
+            if (window.omborStructure[catName][name]) { alert("Bu nomdagi kichik kategoriya allaqachon mavjud!"); return; }
+            window.omborStructure[catName][name] = [];
+            await window.saveToFirestore();
+            renderOmborProducts(catName);
+        }
+
+        window.renameOmborSubcategory = async function(catName, oldSubName) {
+            if (!isDirectorOrAdmin()) return;
+            let name = prompt("Kichik kategoriya uchun yangi nom kiriting:", oldSubName);
+            if (!name) return;
+            name = name.trim();
+            if (!name || name === oldSubName) return;
+            if (window.omborStructure[catName][name]) { alert("Bu nomdagi kichik kategoriya allaqachon mavjud!"); return; }
+            const subcats = window.omborStructure[catName];
+            const reordered = {};
+            Object.keys(subcats).forEach(k => {
+                reordered[k === oldSubName ? name : k] = subcats[k];
+            });
+            window.omborStructure[catName] = reordered;
+            await window.saveToFirestore();
+            renderOmborProducts(catName);
+        }
+
+        window.deleteOmborSubcategory = async function(catName, subName) {
+            if (!isDirectorOrAdmin()) return;
+            let count = (window.omborStructure[catName][subName] || []).length;
+            if (!confirm(`"${subName}" kichik kategoriyasini${count ? ' (' + count + ' ta mahsulot bilan birga)' : ''} o'chirmoqchimisiz?`)) return;
+            delete window.omborStructure[catName][subName];
+            await window.saveToFirestore();
+            renderOmborProducts(catName);
+        }
+
+        window.addOmborProduct = async function(catName, subName) {
+            if (!isDirectorOrAdmin()) return;
+            let name = prompt("Yangi mahsulot nomini kiriting:");
+            if (!name) return;
+            name = name.trim();
+            if (!name) return;
+            if (!window.omborStructure[catName][subName]) window.omborStructure[catName][subName] = [];
+            if (window.omborStructure[catName][subName].includes(name)) { alert("Bu mahsulot shu kichik kategoriyada allaqachon mavjud!"); return; }
+            window.omborStructure[catName][subName].push(name);
+            await window.saveToFirestore();
+            renderOmborProducts(catName);
+        }
+
+        window.renameOmborProduct = async function(catName, subName, prodIndex) {
+            if (!isDirectorOrAdmin()) return;
+            let list = window.omborStructure[catName][subName];
+            let oldName = list[prodIndex];
+            let name = prompt("Mahsulot uchun yangi nom kiriting:", oldName);
+            if (!name) return;
+            name = name.trim();
+            if (!name || name === oldName) return;
+            if (list.includes(name)) { alert("Bu nomdagi mahsulot allaqachon mavjud!"); return; }
+            list[prodIndex] = name;
+            await window.saveToFirestore();
+            renderOmborProducts(catName);
+        }
+
+        window.deleteOmborProduct = async function(catName, subName, prodIndex) {
+            if (!isDirectorOrAdmin()) return;
+            let list = window.omborStructure[catName][subName];
+            let prodName = list[prodIndex];
+            if (!confirm(`"${prodName}" mahsulotini o'chirmoqchimisiz?`)) return;
+            list.splice(prodIndex, 1);
+            await window.saveToFirestore();
+            renderOmborProducts(catName);
+        }
+
+        function renderOmborProducts(catName) {
+            window.currentOmborView = 'products';
+            window.selectedOmborCategoryKey = catName;
+            const container = document.getElementById('ombor-main-container');
+            container.innerHTML = "";
+
+            const editBtn = document.getElementById('ombor-edit-toggle-btn');
+            if (editBtn) {
+                editBtn.style.display = isDirectorOrAdmin() ? 'block' : 'none';
+                editBtn.textContent = window.omborEditMode ? '✔ Tahrirlashni tugatish' : '✎ Tahrirlash rejimi';
+            }
+            const canEdit = isDirectorOrAdmin() && window.omborEditMode;
+
+            let backBtn = document.createElement('button');
+            backBtn.className = 'action-btn';
+            backBtn.style.cssText = "margin-bottom:15px;";
+            backBtn.innerHTML = "&#8592; Kategoriyalarga qaytish";
+            backBtn.onclick = () => renderOmborCategories();
+            container.appendChild(backBtn);
+
+            if (canEdit) {
+                let addSubBtn = document.createElement('button');
+                addSubBtn.className = 'action-btn';
+                addSubBtn.style.cssText = "margin-bottom:15px;";
+                addSubBtn.textContent = "+ Yangi kichik kategoriya qo'shish";
+                addSubBtn.onclick = () => addOmborSubcategory(catName);
+                container.appendChild(addSubBtn);
+            }
+
+            let todaySavedValues = ensureDailyRecord(todayStr()).savedValues;
+            let subcats = window.omborStructure[catName] || {};
+
+            Object.keys(subcats).forEach(subName => {
+                let products = subcats[subName] || [];
+                let showSubHeader = Object.keys(subcats).length > 1 || subName !== 'Asosiy';
+
+                if (showSubHeader || canEdit) {
+                    let subHeaderRow = document.createElement('div');
+                    subHeaderRow.style.cssText = "display:flex; justify-content:space-between; align-items:center; margin: 14px 0 6px 0;";
+
+                    let subHeader = document.createElement('h4');
+                    subHeader.textContent = showSubHeader ? `📁 ${subName}` : '';
+                    subHeader.style.cssText = "color:#fccf0d; font-size:13px;";
+                    subHeaderRow.appendChild(subHeader);
+
+                    if (canEdit) {
+                        let btnGroup = document.createElement('div');
+                        btnGroup.style.cssText = "display:flex; gap:10px;";
+
+                        let renameBtn = document.createElement('button');
+                        renameBtn.textContent = '✎';
+                        renameBtn.style.cssText = "background:none;border:none;color:#fccf0d;cursor:pointer;font-size:13px;";
+                        renameBtn.onclick = () => renameOmborSubcategory(catName, subName);
+                        btnGroup.appendChild(renameBtn);
+
+                        let delBtn = document.createElement('button');
+                        delBtn.textContent = '🗑';
+                        delBtn.style.cssText = "background:none;border:none;color:#e74c3c;cursor:pointer;font-size:13px;";
+                        delBtn.onclick = () => deleteOmborSubcategory(catName, subName);
+                        btnGroup.appendChild(delBtn);
+
+                        subHeaderRow.appendChild(btnGroup);
+                    }
+                    container.appendChild(subHeaderRow);
+                }
+
+                products.forEach((prodName, prodIndex) => {
+                    let d = todaySavedValues[prodName] || { keldi: 0, kechgi: 0, ishlatildi: 0, unit: 'dona' };
+                    let unitLabel = d.unit || 'dona';
+
+                    let infoText = '';
+                    if (window.currentMainCategory === 'kelgan') {
+                        infoText = `Kelgan miqdori: ${d.keldi || 0} ${unitLabel}`;
+                    } else {
+                        infoText = `Qolgani (Astatka): ${d.kechgi || 0} ${unitLabel} | Ishlatildi: ${d.ishlatildi || 0} ${unitLabel}`;
+                    }
+
+                    let card = document.createElement('div');
+                    card.className = 'employee-card';
+
+                    let infoDiv = document.createElement('div');
+                    infoDiv.className = 'employee-info';
+                    infoDiv.innerHTML = `<h3>🔹 ${prodName}</h3><span class="employee-role" style="background: rgba(52,211,153,0.2); color: #34d399;">${infoText}</span>`;
+                    card.appendChild(infoDiv);
+
+                    let actionsDiv = document.createElement('div');
+                    actionsDiv.style.cssText = "display:flex; align-items:center; gap:12px;";
+
+                    if (canEdit) {
+                        let renameBtn = document.createElement('button');
+                        renameBtn.textContent = '✎';
+                        renameBtn.style.cssText = "background:none;border:none;color:#fccf0d;cursor:pointer;font-size:15px;";
+                        renameBtn.onclick = (e) => { e.stopPropagation(); renameOmborProduct(catName, subName, prodIndex); };
+                        actionsDiv.appendChild(renameBtn);
+
+                        let delBtn = document.createElement('button');
+                        delBtn.textContent = '🗑';
+                        delBtn.style.cssText = "background:none;border:none;color:#e74c3c;cursor:pointer;font-size:15px;";
+                        delBtn.onclick = (e) => { e.stopPropagation(); deleteOmborProduct(catName, subName, prodIndex); };
+                        actionsDiv.appendChild(delBtn);
+                    } else {
+                        let statusSpan = document.createElement('span');
+                        statusSpan.style.cssText = "color: #fccf0d; font-size: 13px; font-weight: 600;";
+                        statusSpan.textContent = (window.currentLoggedInUser && (window.currentLoggedInUser.role === 'Meneger' || window.currentLoggedInUser.isDirector)) ? "Kiritish ✎" : "Ko'rish";
+                        actionsDiv.appendChild(statusSpan);
+                    }
+                    card.appendChild(actionsDiv);
+
+                    if (!canEdit && window.currentLoggedInUser && (window.currentLoggedInUser.role === 'Meneger' || window.currentLoggedInUser.isDirector)) {
+                        card.onclick = () => openAstatkaModal(prodName);
+                    }
+                    container.appendChild(card);
+                });
+
+                if (canEdit) {
+                    let addProdBtn = document.createElement('button');
+                    addProdBtn.className = 'action-btn';
+                    addProdBtn.style.cssText = "margin: 6px 0 14px 0; font-size:12px; padding:8px;";
+                    addProdBtn.textContent = `+ ${subName} ga mahsulot qo'shish`;
+                    addProdBtn.onclick = () => addOmborProduct(catName, subName);
+                    container.appendChild(addProdBtn);
+                }
+            });
+        }
+        window.renderOmborProducts = renderOmborProducts;
 
         window.setHisobotDate = function(dateStr) {
             renderHisobotView('daily', dateStr);
@@ -2641,7 +3038,7 @@
             const tabs = document.querySelectorAll('.tab-content');
             const navItems = document.querySelectorAll('.nav-item');
             const isUniversalOrTrainerOrKassa = window.currentLoggedInUser && (window.currentLoggedInUser.role === 'Universal xodim' || window.currentLoggedInUser.role === 'Trener' || window.currentLoggedInUser.role === 'Kassa razdacha');
-            const titles = isUniversalOrTrainerOrKassa ? ["Daromad", "Ishchilar", "Smenalar", "Profil", "Ish soatlari", "Test", "Test natijalari"] : ["Boshqaruv", "Ishchilar", "Smenalar", "Profil", "Ish soatlari", "Test", "Test natijalari"];
+            const titles = isUniversalOrTrainerOrKassa ? ["Daromad", "Ishchilar", "Smenalar", "Profil", "Ish soatlari", "Test", "Test natijalari", "Ombor"] : ["Boshqaruv", "Ishchilar", "Smenalar", "Profil", "Ish soatlari", "Test", "Test natijalari", "Ombor"];
 
             tabs.forEach(tab => tab.classList.remove('active-tab'));
             navItems.forEach(item => item.classList.remove('active'));
@@ -2654,6 +3051,8 @@
                 window.loadTestIframe();
             } else if (index === 6) {
                 window.renderTestResultsTab();
+            } else if (index === 7) {
+                window.refreshOmborView();
             }
         }
     </script>
