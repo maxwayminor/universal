@@ -380,6 +380,9 @@
                         <div class="main-cat-btn" id="mcat-btn-hisobot" onclick="switchMainCategory('hisobot')">
                             <h4>📑 Hisobot</h4>
                         </div>
+                        <div class="main-cat-btn" id="mcat-btn-omborhisobot" onclick="switchMainCategory('omborhisobot')">
+                            <h4>🏬 Ombor hisobot</h4>
+                        </div>
                         <div class="main-cat-btn" id="mcat-btn-sklad" style="display:none;" onclick="switchMainCategory('sklad')">
                             <h4>🏭 Sklad</h4>
                         </div>
@@ -912,6 +915,22 @@
         };
         defaultOmborStructure = normalizeAstatkaStructure(defaultOmborStructure);
 
+        function consolidateOmborCategories(structure) {
+            const singleSubcatMap = { "Kassa": "Napitki", "Kuhniya": "Kuxni" };
+            Object.keys(singleSubcatMap).forEach(catName => {
+                if (structure[catName]) {
+                    let targetSub = singleSubcatMap[catName];
+                    let merged = [];
+                    Object.values(structure[catName]).forEach(arr => {
+                        (arr || []).forEach(p => { if (!merged.includes(p)) merged.push(p); });
+                    });
+                    structure[catName] = { [targetSub]: merged };
+                }
+            });
+            return structure;
+        }
+        defaultOmborStructure = consolidateOmborCategories(defaultOmborStructure);
+
         function normalizeAstatkaStructure(structure) {
             Object.keys(structure).forEach(catName => {
                 if (Array.isArray(structure[catName])) {
@@ -1012,6 +1031,18 @@
                     mergeUpdate.omborStructure = renamed;
                     needsMerge = true;
                 }
+                // "Kassa" / "Kuhniya" ichidagi bir nechta kichik kategoriyalarni bittaga birlashtirish:
+                // Kassa -> "Napitki", Kuhniya -> "Kuxni"
+                let omborForConsolidate = mergeUpdate.omborStructure || data.omborStructure;
+                if (omborForConsolidate) {
+                    let needsConsolidate = false;
+                    if (omborForConsolidate["Kassa"] && !(Object.keys(omborForConsolidate["Kassa"]).length === 1 && omborForConsolidate["Kassa"]["Napitki"])) needsConsolidate = true;
+                    if (omborForConsolidate["Kuhniya"] && !(Object.keys(omborForConsolidate["Kuhniya"]).length === 1 && omborForConsolidate["Kuhniya"]["Kuxni"])) needsConsolidate = true;
+                    if (needsConsolidate) {
+                        mergeUpdate.omborStructure = consolidateOmborCategories({ ...omborForConsolidate });
+                        needsMerge = true;
+                    }
+                }
                 if (needsMerge) await setDoc(docRef, mergeUpdate, { merge: true });
             }
 
@@ -1036,6 +1067,8 @@
                     if (window.currentLoggedInUser) {
                         if (window.currentMainCategory === 'hisobot') {
                             renderHisobotView();
+                        } else if (window.currentMainCategory === 'omborhisobot') {
+                            renderOmborHisobotView();
                         } else if (window.currentMainCategory === 'sklad') {
                             renderSkladView();
                         } else if (window.currentAstView === 'products') {
@@ -1185,7 +1218,7 @@
                 if(profileDirectorControls) profileDirectorControls.style.display = 'block';
                 if(profileSelfService) profileSelfService.style.display = 'none';
                 if(skladBtn) skladBtn.style.display = 'block';
-                if(mainCatsGrid) mainCatsGrid.style.gridTemplateColumns = 'repeat(4, 1fr)';
+                if(mainCatsGrid) mainCatsGrid.style.gridTemplateColumns = 'repeat(5, 1fr)';
                 document.getElementById('attendance-date-picker').value = todayStr();
                 window.renderAttendanceTab(todayStr());
             } else if (isManager) {
@@ -1202,7 +1235,7 @@
                 if(profileDirectorControls) profileDirectorControls.style.display = 'none';
                 if(profileSelfService) profileSelfService.style.display = 'block';
                 if(skladBtn) skladBtn.style.display = 'none';
-                if(mainCatsGrid) mainCatsGrid.style.gridTemplateColumns = 'repeat(3, 1fr)';
+                if(mainCatsGrid) mainCatsGrid.style.gridTemplateColumns = 'repeat(4, 1fr)';
             } else if (isAdmin) {
                 document.getElementById('director-dashboard-content').style.display = 'block';
                 document.getElementById('daromad-content').style.display = 'none';
@@ -1217,7 +1250,7 @@
                 if(profileDirectorControls) profileDirectorControls.style.display = 'none';
                 if(profileSelfService) profileSelfService.style.display = 'none';
                 if(skladBtn) skladBtn.style.display = 'none';
-                if(mainCatsGrid) mainCatsGrid.style.gridTemplateColumns = 'repeat(3, 1fr)';
+                if(mainCatsGrid) mainCatsGrid.style.gridTemplateColumns = 'repeat(4, 1fr)';
             } else if (isUniversalOrTrainerOrKassa) {
                 document.getElementById('director-dashboard-content').style.display = 'none';
                 document.getElementById('daromad-content').style.display = 'block';
@@ -1266,12 +1299,15 @@
             document.getElementById('mcat-btn-kelgan').classList.remove('active');
             document.getElementById('mcat-btn-astatka').classList.remove('active');
             document.getElementById('mcat-btn-hisobot').classList.remove('active');
+            document.getElementById('mcat-btn-omborhisobot').classList.remove('active');
             document.getElementById('mcat-btn-sklad').classList.remove('active');
 
             document.getElementById('mcat-btn-' + catType).classList.add('active');
 
             if (catType === 'hisobot') {
                 renderHisobotView();
+            } else if (catType === 'omborhisobot') {
+                renderOmborHisobotView();
             } else if (catType === 'sklad') {
                 renderSkladView();
             } else {
@@ -1803,6 +1839,127 @@
             let listDiv = document.createElement('div');
             listDiv.innerHTML = reportHtml;
             container.appendChild(listDiv);
+        }
+
+        // ================= OMBOR UCHUN UMUMIY HISOBOT (BOSHQARUV BO'LIMIDA) =================
+        window.omborHisobotMode = 'daily';
+        window.setOmborHisobotDate = function(dateStr) {
+            renderOmborHisobotView('daily', dateStr);
+        }
+        window.setOmborHisobotMonth = function(monthStr) {
+            renderOmborHisobotView('monthly', null, monthStr);
+        }
+        window.switchOmborHisobotMode = function(mode) {
+            renderOmborHisobotView(mode);
+        }
+
+        function renderOmborHisobotView(mode, dateStr, monthStr) {
+            mode = mode || window.omborHisobotMode || 'daily';
+            window.omborHisobotMode = mode;
+            dateStr = dateStr || todayStr();
+            monthStr = monthStr || todayStr().slice(0, 7);
+
+            const container = document.getElementById('astatka-main-container');
+
+            let toolbarHtml = `
+                <div class="employee-card" style="flex-direction: column; align-items: stretch; cursor: default; gap: 10px;">
+                    <div style="display:flex; gap: 8px;">
+                        <button class="action-btn" style="margin-bottom:0; ${mode === 'daily' ? '' : 'background: rgba(255,255,255,0.1); color:white;'}" onclick="switchOmborHisobotMode('daily')">📅 Kunlik</button>
+                        <button class="action-btn" style="margin-bottom:0; ${mode === 'monthly' ? '' : 'background: rgba(255,255,255,0.1); color:white;'}" onclick="switchOmborHisobotMode('monthly')">🗓️ Oylik</button>
+                    </div>
+                    ${mode === 'daily' ? `
+                        <div class="input-group" style="margin-bottom:0;">
+                            <label>Kunni tanlang</label>
+                            <input type="date" value="${dateStr}" max="${todayStr()}" onchange="setOmborHisobotDate(this.value)">
+                        </div>
+                    ` : `
+                        <div class="input-group" style="margin-bottom:0;">
+                            <label>Oyni tanlang</label>
+                            <input type="month" value="${monthStr}" max="${todayStr().slice(0,7)}" onchange="setOmborHisobotMonth(this.value)">
+                        </div>
+                    `}
+                </div>
+            `;
+            container.innerHTML = toolbarHtml + `<h3 style="color:white; margin: 12px 0; font-size:16px;">🏬 Ombor ${mode === 'daily' ? dateStr + ' kunlik hisoboti' : monthStr + ' oylik hisoboti'}</h3>`;
+
+            let totalProductsCount = 0;
+            let reportHtml = '';
+
+            // Aggregatsiya funksiyasi: kunlik yoki oylik
+            function getAggregatedData(prodName) {
+                if (mode === 'daily') {
+                    let rec = window.dailyRecords[dateStr];
+                    return (rec && rec.savedValues[prodName]) || { keldi: 0, kechgi: 0, ishlatildi: 0, unit: 'dona' };
+                } else {
+                    let sum = { keldi: 0, kechgi: 0, ishlatildi: 0, unit: 'dona' };
+                    let found = false;
+                    Object.keys(window.dailyRecords).forEach(dKey => {
+                        if (dKey.slice(0, 7) === monthStr) {
+                            let d = window.dailyRecords[dKey].savedValues[prodName];
+                            if (d) {
+                                found = true;
+                                sum.keldi += parseFloat(d.keldi || 0);
+                                sum.kechgi += parseFloat(d.kechgi || 0);
+                                sum.ishlatildi += parseFloat(d.ishlatildi || 0);
+                                sum.unit = d.unit || sum.unit;
+                            }
+                        }
+                    });
+                    return found ? sum : { keldi: 0, kechgi: 0, ishlatildi: 0, unit: 'dona' };
+                }
+            }
+
+            let grandKeldi = 0, grandIshlatildi = 0;
+
+            Object.keys(window.omborStructure).forEach(catName => {
+                let products = getAllProductNamesInCategory(catName, window.omborStructure);
+                let productsRowsHtml = '';
+
+                products.forEach(prodName => {
+                    let d = getAggregatedData(prodName);
+                    let unitLabel = d.unit || 'dona';
+                    totalProductsCount++;
+                    grandKeldi += parseFloat(d.keldi || 0);
+                    grandIshlatildi += parseFloat(d.ishlatildi || 0);
+
+                    productsRowsHtml += `
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 12px;">
+                            <span style="color: white; width: 45%;">🔹 ${prodName}</span>
+                            <span style="color: #d1d5db; text-align: right; width: 55%;">
+                                Keldi: <b style="color:white;">${d.keldi || 0} ${unitLabel}</b> | 
+                                Ast: <b style="color:white;">${d.kechgi || 0} ${unitLabel}</b> | 
+                                Ish: <b style="color:#34d399;">${d.ishlatildi || 0} ${unitLabel}</b>
+                            </span>
+                        </div>
+                    `;
+                });
+
+                reportHtml += `
+                    <div class="employee-card" style="flex-direction: column; align-items: stretch; cursor: default;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <h3 style="color:#fccf0d; font-size:15px;">📂 ${catName}</h3>
+                            <span class="employee-role">${products.length} ta mahsulot</span>
+                        </div>
+                        <div style="background: rgba(0,0,0,0.15); padding: 8px 12px; border-radius: 10px;">
+                            ${productsRowsHtml}
+                        </div>
+                    </div>
+                `;
+            });
+
+            let summaryCard = document.createElement('div');
+            summaryCard.style.cssText = "background: rgba(252,207,13,0.15); border: 1px solid #fccf0d; border-radius: 14px; padding: 15px; margin-bottom: 15px; color: white;";
+            summaryCard.innerHTML = `
+                <h3 style="font-size: 16px; margin-bottom: 8px; color: #fccf0d;">📊 Umumiy ko'rsatkichlar (Ombor)</h3>
+                <p style="font-size: 13px;">Jami mahsulot turlari: <b>${totalProductsCount} ta</b></p>
+                <p style="font-size: 13px;">Jami kelgan (barcha mahsulot bo'yicha, birlik aralash): <b>${grandKeldi.toFixed(2)}</b></p>
+                <p style="font-size: 13px;">Jami ishlatilgan (barcha mahsulot bo'yicha, birlik aralash): <b>${grandIshlatildi.toFixed(2)}</b></p>
+            `;
+            container.appendChild(summaryCard);
+
+            let listDiv2 = document.createElement('div');
+            listDiv2.innerHTML = reportHtml;
+            container.appendChild(listDiv2);
         }
 
         // ================= SKLAD: TOVARLARNI QO'SHISH VA O'CHIRISH (FAQAT DIREKTOR) =================
