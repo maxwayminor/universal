@@ -793,7 +793,7 @@
     <!-- Firebase SDK Ulanishi -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
-        import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyC8V8kgo214s0yF4w1Yr2QoLumdV9bSzbI",
@@ -1055,7 +1055,7 @@
                         needsMerge = true;
                     }
                 }
-                if (needsMerge) await setDoc(docRef, mergeUpdate, { merge: true });
+                if (needsMerge) await updateDoc(docRef, mergeUpdate);
             }
 
             // Real-time o'zgarishlarni kuzatish
@@ -2008,7 +2008,7 @@
                     `}
                 </div>
             `;
-            container.innerHTML = toolbarHtml + `<h3 style="color:white; margin: 12px 0; font-size:16px;">📑 ${mode === 'daily' ? dateStr + ' kunlik hisoboti' : monthStr + ' oylik hisoboti'}</h3>`;
+            container.innerHTML = toolbarHtml + `<h3 style="color:white; margin: 14px 0; font-size:19px; font-weight:700;">📑 ${mode === 'daily' ? dateStr + ' kunlik hisoboti' : monthStr + ' oylik hisoboti'}</h3>`;
 
             let totalProductsCount = 0;
             let reportHtml = '';
@@ -2051,24 +2051,24 @@
                     grandIshlatildi += parseFloat(d.ishlatildi || 0);
 
                     productsRowsHtml += `
-                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 12px;">
-                            <span style="color: white; width: 45%;">🔹 ${prodName}</span>
-                            <span style="color: #d1d5db; text-align: right; width: 55%;">
-                                Keldi: <b style="color:white;">${d.keldi || 0} ${unitLabel}</b> | 
-                                Ast: <b style="color:white;">${d.kechgi || 0} ${unitLabel}</b> | 
-                                Ish: <b style="color:#34d399;">${d.ishlatildi || 0} ${unitLabel}</b>
-                            </span>
+                        <div style="padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.08);">
+                            <div style="color: white; font-size: 15px; font-weight: 600; margin-bottom: 8px;">🔹 ${prodName}</div>
+                            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                                <span style="background: rgba(255,255,255,0.08); padding:5px 12px; border-radius:8px; font-size:14px; color:#d1d5db;">Keldi: <b style="color:white;">${d.keldi || 0} ${unitLabel}</b></span>
+                                <span style="background: rgba(255,255,255,0.08); padding:5px 12px; border-radius:8px; font-size:14px; color:#d1d5db;">Ast: <b style="color:white;">${d.kechgi || 0} ${unitLabel}</b></span>
+                                <span style="background: rgba(52,211,153,0.15); padding:5px 12px; border-radius:8px; font-size:14px; color:#34d399;">Ish: <b>${d.ishlatildi || 0} ${unitLabel}</b></span>
+                            </div>
                         </div>
                     `;
                 });
 
                 reportHtml += `
                     <div class="employee-card" style="flex-direction: column; align-items: stretch; cursor: default;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                            <h3 style="color:#fccf0d; font-size:15px;">📂 ${catName}</h3>
-                            <span class="employee-role">${products.length} ta mahsulot</span>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <h3 style="color:#fccf0d; font-size:18px; font-weight:700;">📂 ${catName}</h3>
+                            <span style="font-size: 13px; background: rgba(252, 207, 13, 0.2); color: #fccf0d; padding: 5px 10px; border-radius: 8px; font-weight:600;">${products.length} ta mahsulot</span>
                         </div>
-                        <div style="background: rgba(0,0,0,0.15); padding: 8px 12px; border-radius: 10px;">
+                        <div style="background: rgba(0,0,0,0.15); padding: 10px 14px; border-radius: 12px;">
                             ${productsRowsHtml}
                         </div>
                     </div>
@@ -2076,12 +2076,12 @@
             });
 
             let summaryCard = document.createElement('div');
-            summaryCard.style.cssText = "background: rgba(252,207,13,0.15); border: 1px solid #fccf0d; border-radius: 14px; padding: 15px; margin-bottom: 15px; color: white;";
+            summaryCard.style.cssText = "background: rgba(252,207,13,0.15); border: 1px solid #fccf0d; border-radius: 14px; padding: 18px; margin-bottom: 15px; color: white;";
             summaryCard.innerHTML = `
-                <h3 style="font-size: 16px; margin-bottom: 8px; color: #fccf0d;">📊 Umumiy ko'rsatkichlar</h3>
-                <p style="font-size: 13px;">Jami mahsulot turlari: <b>${totalProductsCount} ta</b></p>
-                <p style="font-size: 13px;">Jami kelgan (barcha mahsulot bo'yicha, birlik aralash): <b>${grandKeldi.toFixed(2)}</b></p>
-                <p style="font-size: 13px;">Jami ishlatilgan (barcha mahsulot bo'yicha, birlik aralash): <b>${grandIshlatildi.toFixed(2)}</b></p>
+                <h3 style="font-size: 18px; margin-bottom: 10px; color: #fccf0d; font-weight:700;">📊 Umumiy ko'rsatkichlar</h3>
+                <p style="font-size: 15px; margin: 6px 0;">Jami mahsulot turlari: <b>${totalProductsCount} ta</b></p>
+                <p style="font-size: 15px; margin: 6px 0;">Jami kelgan (barcha mahsulot bo'yicha, birlik aralash): <b>${grandKeldi.toFixed(2)}</b></p>
+                <p style="font-size: 15px; margin: 6px 0;">Jami ishlatilgan (barcha mahsulot bo'yicha, birlik aralash): <b>${grandIshlatildi.toFixed(2)}</b></p>
             `;
             container.appendChild(summaryCard);
 
@@ -2131,7 +2131,7 @@
                     `}
                 </div>
             `;
-            container.innerHTML = toolbarHtml + `<h3 style="color:white; margin: 12px 0; font-size:16px;">🏬 Ombor ${mode === 'daily' ? dateStr + ' kunlik hisoboti' : monthStr + ' oylik hisoboti'}</h3>`;
+            container.innerHTML = toolbarHtml + `<h3 style="color:white; margin: 14px 0; font-size:19px; font-weight:700;">🏬 Ombor ${mode === 'daily' ? dateStr + ' kunlik hisoboti' : monthStr + ' oylik hisoboti'}</h3>`;
 
             let totalProductsCount = 0;
             let reportHtml = '';
@@ -2174,24 +2174,24 @@
                     grandIshlatildi += parseFloat(d.ishlatildi || 0);
 
                     productsRowsHtml += `
-                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 12px;">
-                            <span style="color: white; width: 45%;">🔹 ${prodName}</span>
-                            <span style="color: #d1d5db; text-align: right; width: 55%;">
-                                Keldi: <b style="color:white;">${d.keldi || 0} ${unitLabel}</b> | 
-                                Ast: <b style="color:white;">${d.kechgi || 0} ${unitLabel}</b> | 
-                                Ish: <b style="color:#34d399;">${d.ishlatildi || 0} ${unitLabel}</b>
-                            </span>
+                        <div style="padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.08);">
+                            <div style="color: white; font-size: 15px; font-weight: 600; margin-bottom: 8px;">🔹 ${prodName}</div>
+                            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                                <span style="background: rgba(255,255,255,0.08); padding:5px 12px; border-radius:8px; font-size:14px; color:#d1d5db;">Keldi: <b style="color:white;">${d.keldi || 0} ${unitLabel}</b></span>
+                                <span style="background: rgba(255,255,255,0.08); padding:5px 12px; border-radius:8px; font-size:14px; color:#d1d5db;">Ast: <b style="color:white;">${d.kechgi || 0} ${unitLabel}</b></span>
+                                <span style="background: rgba(52,211,153,0.15); padding:5px 12px; border-radius:8px; font-size:14px; color:#34d399;">Ish: <b>${d.ishlatildi || 0} ${unitLabel}</b></span>
+                            </div>
                         </div>
                     `;
                 });
 
                 reportHtml += `
                     <div class="employee-card" style="flex-direction: column; align-items: stretch; cursor: default;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                            <h3 style="color:#fccf0d; font-size:15px;">📂 ${catName}</h3>
-                            <span class="employee-role">${products.length} ta mahsulot</span>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <h3 style="color:#fccf0d; font-size:18px; font-weight:700;">📂 ${catName}</h3>
+                            <span style="font-size: 13px; background: rgba(252, 207, 13, 0.2); color: #fccf0d; padding: 5px 10px; border-radius: 8px; font-weight:600;">${products.length} ta mahsulot</span>
                         </div>
-                        <div style="background: rgba(0,0,0,0.15); padding: 8px 12px; border-radius: 10px;">
+                        <div style="background: rgba(0,0,0,0.15); padding: 10px 14px; border-radius: 12px;">
                             ${productsRowsHtml}
                         </div>
                     </div>
@@ -2199,12 +2199,12 @@
             });
 
             let summaryCard = document.createElement('div');
-            summaryCard.style.cssText = "background: rgba(252,207,13,0.15); border: 1px solid #fccf0d; border-radius: 14px; padding: 15px; margin-bottom: 15px; color: white;";
+            summaryCard.style.cssText = "background: rgba(252,207,13,0.15); border: 1px solid #fccf0d; border-radius: 14px; padding: 18px; margin-bottom: 15px; color: white;";
             summaryCard.innerHTML = `
-                <h3 style="font-size: 16px; margin-bottom: 8px; color: #fccf0d;">📊 Umumiy ko'rsatkichlar (Ombor)</h3>
-                <p style="font-size: 13px;">Jami mahsulot turlari: <b>${totalProductsCount} ta</b></p>
-                <p style="font-size: 13px;">Jami kelgan (barcha mahsulot bo'yicha, birlik aralash): <b>${grandKeldi.toFixed(2)}</b></p>
-                <p style="font-size: 13px;">Jami ishlatilgan (barcha mahsulot bo'yicha, birlik aralash): <b>${grandIshlatildi.toFixed(2)}</b></p>
+                <h3 style="font-size: 18px; margin-bottom: 10px; color: #fccf0d; font-weight:700;">📊 Umumiy ko'rsatkichlar (Ombor)</h3>
+                <p style="font-size: 15px; margin: 6px 0;">Jami mahsulot turlari: <b>${totalProductsCount} ta</b></p>
+                <p style="font-size: 15px; margin: 6px 0;">Jami kelgan (barcha mahsulot bo'yicha, birlik aralash): <b>${grandKeldi.toFixed(2)}</b></p>
+                <p style="font-size: 15px; margin: 6px 0;">Jami ishlatilgan (barcha mahsulot bo'yicha, birlik aralash): <b>${grandIshlatildi.toFixed(2)}</b></p>
             `;
             container.appendChild(summaryCard);
 
