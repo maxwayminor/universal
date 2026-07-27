@@ -396,6 +396,8 @@
                         ✅ Meneger tomonidan yuborilgan yakuniy kechgi astatka va ishlatilgan mahsulotlar hisoboti.
                     </div>
 
+                    <button class="action-btn" id="astatka-edit-toggle-btn" style="display:none; margin-bottom:15px;" onclick="toggleAstatkaEditMode()">✎ Tahrirlash rejimi</button>
+
                     <div id="astatka-main-container"></div>
 
                 </div>
@@ -433,6 +435,10 @@
                 <div class="empty-page" style="padding-top: 40px;">
                     <h2 id="profile-name-display">Direktor</h2>
                     <p id="profile-role-display" style="color: #fccf0d; margin-top: 5px;">Asosiy Admin</p>
+                </div>
+
+                <div id="profile-telegram-section" style="margin-top:20px; text-align:left;">
+                    <button class="action-btn" id="profile-telegram-open-btn" style="background:#229ED9; color:white;" onclick="openMyTelegram()">✈️ Telegram Web'ni ochish</button>
                 </div>
 
                 <div id="profile-selfservice" style="display:none; margin-top:20px; text-align:left;">
@@ -837,8 +843,10 @@
         window.currentMainCategory = 'kelgan';
         window.currentAstView = 'categories';
         window.selectedCategoryKey = '';
+        window.astatkaEditMode = false;
         window.omborStructure = {};
         window.currentOmborView = 'categories';
+        window.currentOmborMode = 'kelgan';
         window.selectedOmborCategoryKey = '';
         window.activeProductKey = '';
         window.astCalcVals = { keldi: '0', kechgi: '0' };
@@ -862,8 +870,9 @@
             return weekDays[weekDayIndexMap[new Date().getDay()]];
         }
         function ensureDailyRecord(dateStr) {
-            if (!window.dailyRecords[dateStr]) window.dailyRecords[dateStr] = { savedValues: {}, submittedValues: null };
+            if (!window.dailyRecords[dateStr]) window.dailyRecords[dateStr] = { savedValues: {}, omborSavedValues: {}, submittedValues: null };
             if (!window.dailyRecords[dateStr].savedValues) window.dailyRecords[dateStr].savedValues = {};
+            if (!window.dailyRecords[dateStr].omborSavedValues) window.dailyRecords[dateStr].omborSavedValues = {};
             return window.dailyRecords[dateStr];
         }
         function ensureAttendanceDay(dateStr) {
@@ -872,6 +881,9 @@
         }
         function isDirectorOrAdmin() {
             return window.currentLoggedInUser && (window.currentLoggedInUser.isDirector || window.currentLoggedInUser.role === 'Admin');
+        }
+        function canEnterAstatkaValues() {
+            return window.currentLoggedInUser && (window.currentLoggedInUser.isDirector || window.currentLoggedInUser.role === 'Admin' || window.currentLoggedInUser.role === 'Meneger');
         }
 
         let defaultAstatkaStructure = {
@@ -1315,49 +1327,256 @@
             }
         }
 
+        window.toggleAstatkaEditMode = function() {
+            if (!isDirectorOrAdmin()) return;
+            window.astatkaEditMode = !window.astatkaEditMode;
+            if (window.currentAstView === 'products') {
+                renderAstatkaProducts(window.selectedCategoryKey);
+            } else {
+                renderAstatkaCategories();
+            }
+        }
+
         function renderAstatkaCategories() {
             window.currentAstView = 'categories';
             const container = document.getElementById('astatka-main-container');
             container.innerHTML = "";
 
+            const editBtn = document.getElementById('astatka-edit-toggle-btn');
+            if (editBtn) {
+                editBtn.style.display = isDirectorOrAdmin() ? 'block' : 'none';
+                editBtn.textContent = window.astatkaEditMode ? '✔ Tahrirlashni tugatish' : '✎ Tahrirlash rejimi';
+            }
+            const canEdit = isDirectorOrAdmin() && window.astatkaEditMode;
+
+            if (canEdit) {
+                let addBtn = document.createElement('button');
+                addBtn.className = 'action-btn';
+                addBtn.style.cssText = "margin-bottom:15px;";
+                addBtn.textContent = "+ Yangi kategoriya qo'shish";
+                addBtn.onclick = () => addAstatkaCategory();
+                container.appendChild(addBtn);
+            }
+
             Object.keys(window.astatkaStructure).forEach(catName => {
                 let card = document.createElement('div');
                 card.className = 'employee-card';
                 let titlePrefix = window.currentMainCategory === 'kelgan' ? '📦 Kelgan:' : '📊 Astatka:';
-                card.innerHTML = `
-                    <div class="employee-info">
-                        <h3>📂 ${catName}</h3>
-                        <span class="employee-role">${titlePrefix} (${getAllProductNamesInCategory(catName).length} ta mahsulot)</span>
-                    </div>
-                    <div>
-                        <span style="color: #fccf0d; font-size: 13px; font-weight: 600;">Ochish &#8594;</span>
-                    </div>
-                `;
+
+                let infoDiv = document.createElement('div');
+                infoDiv.className = 'employee-info';
+                infoDiv.innerHTML = `<h3>📂 ${catName}</h3><span class="employee-role">${titlePrefix} (${getAllProductNamesInCategory(catName).length} ta mahsulot)</span>`;
+                card.appendChild(infoDiv);
+
+                let actionsDiv = document.createElement('div');
+                actionsDiv.style.cssText = "display:flex; align-items:center; gap:12px;";
+
+                if (canEdit) {
+                    let renameBtn = document.createElement('button');
+                    renameBtn.textContent = '✎';
+                    renameBtn.style.cssText = "background:none;border:none;color:#fccf0d;cursor:pointer;font-size:15px;";
+                    renameBtn.onclick = (e) => { e.stopPropagation(); renameAstatkaCategory(catName); };
+                    actionsDiv.appendChild(renameBtn);
+
+                    let delBtn = document.createElement('button');
+                    delBtn.textContent = '🗑';
+                    delBtn.style.cssText = "background:none;border:none;color:#e74c3c;cursor:pointer;font-size:15px;";
+                    delBtn.onclick = (e) => { e.stopPropagation(); deleteAstatkaCategory(catName); };
+                    actionsDiv.appendChild(delBtn);
+                } else {
+                    let openSpan = document.createElement('span');
+                    openSpan.style.cssText = "color:#fccf0d; font-size:13px; font-weight:600;";
+                    openSpan.innerHTML = "Ochish &#8594;";
+                    actionsDiv.appendChild(openSpan);
+                }
+
+                card.appendChild(actionsDiv);
                 card.onclick = () => renderAstatkaProducts(catName);
                 container.appendChild(card);
             });
         }
         window.renderAstatkaCategories = renderAstatkaCategories;
 
+        window.addAstatkaCategory = async function() {
+            if (!isDirectorOrAdmin()) return;
+            let name = prompt("Yangi kategoriya nomini kiriting:");
+            if (!name) return;
+            name = name.trim();
+            if (!name) return;
+            if (window.astatkaStructure[name]) { alert("Bu nomdagi kategoriya allaqachon mavjud!"); return; }
+            window.astatkaStructure[name] = { "Asosiy": [] };
+            await window.saveToFirestore();
+            renderAstatkaCategories();
+        }
+
+        window.renameAstatkaCategory = async function(oldName) {
+            if (!isDirectorOrAdmin()) return;
+            let name = prompt("Kategoriya uchun yangi nom kiriting:", oldName);
+            if (!name) return;
+            name = name.trim();
+            if (!name || name === oldName) return;
+            if (window.astatkaStructure[name]) { alert("Bu nomdagi kategoriya allaqachon mavjud!"); return; }
+            const reordered = {};
+            Object.keys(window.astatkaStructure).forEach(k => {
+                reordered[k === oldName ? name : k] = window.astatkaStructure[k];
+            });
+            window.astatkaStructure = reordered;
+            await window.saveToFirestore();
+            renderAstatkaCategories();
+        }
+
+        window.deleteAstatkaCategory = async function(catName) {
+            if (!isDirectorOrAdmin()) return;
+            let count = getAllProductNamesInCategory(catName).length;
+            if (!confirm(`"${catName}" kategoriyasini${count ? ' (' + count + ' ta mahsulot bilan birga)' : ''} butunlay o'chirmoqchimisiz?`)) return;
+            delete window.astatkaStructure[catName];
+            await window.saveToFirestore();
+            renderAstatkaCategories();
+        }
+
+        window.addAstatkaSubcategory = async function(catName) {
+            if (!isDirectorOrAdmin()) return;
+            let name = prompt("Yangi kichik kategoriya nomini kiriting:");
+            if (!name) return;
+            name = name.trim();
+            if (!name) return;
+            if (!window.astatkaStructure[catName]) window.astatkaStructure[catName] = {};
+            if (window.astatkaStructure[catName][name]) { alert("Bu nomdagi kichik kategoriya allaqachon mavjud!"); return; }
+            window.astatkaStructure[catName][name] = [];
+            await window.saveToFirestore();
+            renderAstatkaProducts(catName);
+        }
+
+        window.renameAstatkaSubcategory = async function(catName, oldSubName) {
+            if (!isDirectorOrAdmin()) return;
+            let name = prompt("Kichik kategoriya uchun yangi nom kiriting:", oldSubName);
+            if (!name) return;
+            name = name.trim();
+            if (!name || name === oldSubName) return;
+            if (window.astatkaStructure[catName][name]) { alert("Bu nomdagi kichik kategoriya allaqachon mavjud!"); return; }
+            const subcats = window.astatkaStructure[catName];
+            const reordered = {};
+            Object.keys(subcats).forEach(k => {
+                reordered[k === oldSubName ? name : k] = subcats[k];
+            });
+            window.astatkaStructure[catName] = reordered;
+            await window.saveToFirestore();
+            renderAstatkaProducts(catName);
+        }
+
+        window.deleteAstatkaSubcategory = async function(catName, subName) {
+            if (!isDirectorOrAdmin()) return;
+            let count = (window.astatkaStructure[catName][subName] || []).length;
+            if (!confirm(`"${subName}" kichik kategoriyasini${count ? ' (' + count + ' ta mahsulot bilan birga)' : ''} o'chirmoqchimisiz?`)) return;
+            delete window.astatkaStructure[catName][subName];
+            await window.saveToFirestore();
+            renderAstatkaProducts(catName);
+        }
+
+        window.addAstatkaProduct = async function(catName, subName) {
+            if (!isDirectorOrAdmin()) return;
+            let name = prompt("Yangi mahsulot nomini kiriting:");
+            if (!name) return;
+            name = name.trim();
+            if (!name) return;
+            if (!window.astatkaStructure[catName][subName]) window.astatkaStructure[catName][subName] = [];
+            if (window.astatkaStructure[catName][subName].includes(name)) { alert("Bu mahsulot shu kichik kategoriyada allaqachon mavjud!"); return; }
+            window.astatkaStructure[catName][subName].push(name);
+            await window.saveToFirestore();
+            renderAstatkaProducts(catName);
+        }
+
+        window.renameAstatkaProduct = async function(catName, subName, prodIndex) {
+            if (!isDirectorOrAdmin()) return;
+            let list = window.astatkaStructure[catName][subName];
+            let oldName = list[prodIndex];
+            let name = prompt("Mahsulot uchun yangi nom kiriting:", oldName);
+            if (!name) return;
+            name = name.trim();
+            if (!name || name === oldName) return;
+            if (list.includes(name)) { alert("Bu nomdagi mahsulot allaqachon mavjud!"); return; }
+            list[prodIndex] = name;
+            await window.saveToFirestore();
+            renderAstatkaProducts(catName);
+        }
+
+        window.deleteAstatkaProduct = async function(catName, subName, prodIndex) {
+            if (!isDirectorOrAdmin()) return;
+            let list = window.astatkaStructure[catName][subName];
+            let prodName = list[prodIndex];
+            if (!confirm(`"${prodName}" mahsulotini o'chirmoqchimisiz?`)) return;
+            list.splice(prodIndex, 1);
+            await window.saveToFirestore();
+            renderAstatkaProducts(catName);
+        }
+
         function renderAstatkaProducts(catName) {
             window.currentAstView = 'products';
             window.selectedCategoryKey = catName;
             const container = document.getElementById('astatka-main-container');
-            container.innerHTML = `<button class="action-btn" style="margin-bottom:15px;" onclick="renderAstatkaCategories()">&#8592; Kategoriyalarga qaytish</button>`;
+            container.innerHTML = "";
+
+            const editBtn = document.getElementById('astatka-edit-toggle-btn');
+            if (editBtn) {
+                editBtn.style.display = isDirectorOrAdmin() ? 'block' : 'none';
+                editBtn.textContent = window.astatkaEditMode ? '✔ Tahrirlashni tugatish' : '✎ Tahrirlash rejimi';
+            }
+            const canEdit = isDirectorOrAdmin() && window.astatkaEditMode;
+
+            let backBtn = document.createElement('button');
+            backBtn.className = 'action-btn';
+            backBtn.style.cssText = "margin-bottom:15px;";
+            backBtn.innerHTML = "&#8592; Kategoriyalarga qaytish";
+            backBtn.onclick = () => renderAstatkaCategories();
+            container.appendChild(backBtn);
+
+            if (canEdit) {
+                let addSubBtn = document.createElement('button');
+                addSubBtn.className = 'action-btn';
+                addSubBtn.style.cssText = "margin-bottom:15px;";
+                addSubBtn.textContent = "+ Yangi kichik kategoriya qo'shish";
+                addSubBtn.onclick = () => addAstatkaSubcategory(catName);
+                container.appendChild(addSubBtn);
+            }
 
             let todaySavedValues = ensureDailyRecord(todayStr()).savedValues;
             let subcats = window.astatkaStructure[catName] || {};
 
             Object.keys(subcats).forEach(subName => {
                 let products = subcats[subName] || [];
-                if (Object.keys(subcats).length > 1 || subName !== 'Asosiy') {
+                let showSubHeader = Object.keys(subcats).length > 1 || subName !== 'Asosiy';
+
+                if (showSubHeader || canEdit) {
+                    let subHeaderRow = document.createElement('div');
+                    subHeaderRow.style.cssText = "display:flex; justify-content:space-between; align-items:center; margin: 14px 0 6px 0;";
+
                     let subHeader = document.createElement('h4');
-                    subHeader.textContent = `📁 ${subName}`;
-                    subHeader.style.cssText = "color:#fccf0d; font-size:13px; margin: 14px 0 6px 0;";
-                    container.appendChild(subHeader);
+                    subHeader.textContent = showSubHeader ? `📁 ${subName}` : '';
+                    subHeader.style.cssText = "color:#fccf0d; font-size:13px;";
+                    subHeaderRow.appendChild(subHeader);
+
+                    if (canEdit) {
+                        let btnGroup = document.createElement('div');
+                        btnGroup.style.cssText = "display:flex; gap:10px;";
+
+                        let renameBtn = document.createElement('button');
+                        renameBtn.textContent = '✎';
+                        renameBtn.style.cssText = "background:none;border:none;color:#fccf0d;cursor:pointer;font-size:13px;";
+                        renameBtn.onclick = () => renameAstatkaSubcategory(catName, subName);
+                        btnGroup.appendChild(renameBtn);
+
+                        let delBtn = document.createElement('button');
+                        delBtn.textContent = '🗑';
+                        delBtn.style.cssText = "background:none;border:none;color:#e74c3c;cursor:pointer;font-size:13px;";
+                        delBtn.onclick = () => deleteAstatkaSubcategory(catName, subName);
+                        btnGroup.appendChild(delBtn);
+
+                        subHeaderRow.appendChild(btnGroup);
+                    }
+                    container.appendChild(subHeaderRow);
                 }
 
-                products.forEach(prodName => {
+                products.forEach((prodName, prodIndex) => {
                     let d = todaySavedValues[prodName] || { keldi: 0, kechgi: 0, ishlatildi: 0, unit: 'dona' };
                     let unitLabel = d.unit || 'dona';
 
@@ -1370,41 +1589,69 @@
 
                     let card = document.createElement('div');
                     card.className = 'employee-card';
-                    card.innerHTML = `
-                        <div class="employee-info">
-                            <h3>🔹 ${prodName}</h3>
-                            <span class="employee-role" style="background: rgba(52,211,153,0.2); color: #34d399;">
-                                ${infoText}
-                            </span>
-                        </div>
-                        <div>
-                            <span style="color: #fccf0d; font-size: 13px; font-weight: 600;">${window.currentLoggedInUser && (window.currentLoggedInUser.role === 'Meneger' || window.currentLoggedInUser.isDirector) ? 'Kiritish ✎' : 'Ko\'rish'}</span>
-                        </div>
-                    `;
-                    if (window.currentLoggedInUser && (window.currentLoggedInUser.role === 'Meneger' || window.currentLoggedInUser.isDirector)) {
-                        card.onclick = () => openAstatkaModal(prodName);
+
+                    let infoDiv = document.createElement('div');
+                    infoDiv.className = 'employee-info';
+                    infoDiv.innerHTML = `<h3>🔹 ${prodName}</h3><span class="employee-role" style="background: rgba(52,211,153,0.2); color: #34d399;">${infoText}</span>`;
+                    card.appendChild(infoDiv);
+
+                    let actionsDiv = document.createElement('div');
+                    actionsDiv.style.cssText = "display:flex; align-items:center; gap:12px;";
+
+                    if (canEdit) {
+                        let renameBtn = document.createElement('button');
+                        renameBtn.textContent = '✎';
+                        renameBtn.style.cssText = "background:none;border:none;color:#fccf0d;cursor:pointer;font-size:15px;";
+                        renameBtn.onclick = (e) => { e.stopPropagation(); renameAstatkaProduct(catName, subName, prodIndex); };
+                        actionsDiv.appendChild(renameBtn);
+
+                        let delBtn = document.createElement('button');
+                        delBtn.textContent = '🗑';
+                        delBtn.style.cssText = "background:none;border:none;color:#e74c3c;cursor:pointer;font-size:15px;";
+                        delBtn.onclick = (e) => { e.stopPropagation(); deleteAstatkaProduct(catName, subName, prodIndex); };
+                        actionsDiv.appendChild(delBtn);
+                    } else {
+                        let statusSpan = document.createElement('span');
+                        statusSpan.style.cssText = "color: #fccf0d; font-size: 13px; font-weight: 600;";
+                        statusSpan.textContent = canEnterAstatkaValues() ? "Kiritish ✎" : "Ko'rish";
+                        actionsDiv.appendChild(statusSpan);
+                    }
+                    card.appendChild(actionsDiv);
+
+                    if (!canEdit && canEnterAstatkaValues()) {
+                        card.onclick = () => openAstatkaModal(prodName, 'astatka');
                     }
                     container.appendChild(card);
                 });
+
+                if (canEdit) {
+                    let addProdBtn = document.createElement('button');
+                    addProdBtn.className = 'action-btn';
+                    addProdBtn.style.cssText = "margin: 6px 0 14px 0; font-size:12px; padding:8px;";
+                    addProdBtn.textContent = `+ ${subName} ga mahsulot qo'shish`;
+                    addProdBtn.onclick = () => addAstatkaProduct(catName, subName);
+                    container.appendChild(addProdBtn);
+                }
             });
         }
+        window.renderAstatkaProducts = renderAstatkaProducts;
 
         // ================= OMBOR (Napitkalar/Kuxnya) - alohida taskbar bo'limi =================
         window.switchOmborMode = function(mode) {
             if (mode === 'kelgan' || mode === 'astatka') {
-                window.currentMainCategory = mode;
+                window.currentOmborMode = mode;
             }
-            document.getElementById('ombor-btn-kelgan').classList.toggle('active', window.currentMainCategory === 'kelgan');
-            document.getElementById('ombor-btn-astatka').classList.toggle('active', window.currentMainCategory === 'astatka');
+            document.getElementById('ombor-btn-kelgan').classList.toggle('active', window.currentOmborMode === 'kelgan');
+            document.getElementById('ombor-btn-astatka').classList.toggle('active', window.currentOmborMode === 'astatka');
             renderOmborCategories();
         }
 
         window.refreshOmborView = function() {
-            if (window.currentMainCategory !== 'kelgan' && window.currentMainCategory !== 'astatka') {
-                window.currentMainCategory = 'kelgan';
+            if (window.currentOmborMode !== 'kelgan' && window.currentOmborMode !== 'astatka') {
+                window.currentOmborMode = 'kelgan';
             }
-            document.getElementById('ombor-btn-kelgan').classList.toggle('active', window.currentMainCategory === 'kelgan');
-            document.getElementById('ombor-btn-astatka').classList.toggle('active', window.currentMainCategory === 'astatka');
+            document.getElementById('ombor-btn-kelgan').classList.toggle('active', window.currentOmborMode === 'kelgan');
+            document.getElementById('ombor-btn-astatka').classList.toggle('active', window.currentOmborMode === 'astatka');
             if (window.currentOmborView === 'products') {
                 renderOmborProducts(window.selectedOmborCategoryKey);
             } else {
@@ -1436,7 +1683,7 @@
             Object.keys(window.omborStructure).forEach(catName => {
                 let card = document.createElement('div');
                 card.className = 'employee-card';
-                let titlePrefix = window.currentMainCategory === 'kelgan' ? '📦 Kelgan:' : '📊 Astatka:';
+                let titlePrefix = window.currentOmborMode === 'kelgan' ? '📦 Kelgan:' : '📊 Astatka:';
 
                 let infoDiv = document.createElement('div');
                 infoDiv.className = 'employee-info';
@@ -1625,7 +1872,7 @@
                 container.appendChild(addSubBtn);
             }
 
-            let todaySavedValues = ensureDailyRecord(todayStr()).savedValues;
+            let todaySavedValues = ensureDailyRecord(todayStr()).omborSavedValues;
             let subcats = window.omborStructure[catName] || {};
 
             Object.keys(subcats).forEach(subName => {
@@ -1667,7 +1914,7 @@
                     let unitLabel = d.unit || 'dona';
 
                     let infoText = '';
-                    if (window.currentMainCategory === 'kelgan') {
+                    if (window.currentOmborMode === 'kelgan') {
                         infoText = `Kelgan miqdori: ${d.keldi || 0} ${unitLabel}`;
                     } else {
                         infoText = `Qolgani (Astatka): ${d.kechgi || 0} ${unitLabel} | Ishlatildi: ${d.ishlatildi || 0} ${unitLabel}`;
@@ -1699,13 +1946,13 @@
                     } else {
                         let statusSpan = document.createElement('span');
                         statusSpan.style.cssText = "color: #fccf0d; font-size: 13px; font-weight: 600;";
-                        statusSpan.textContent = (window.currentLoggedInUser && (window.currentLoggedInUser.role === 'Meneger' || window.currentLoggedInUser.isDirector)) ? "Kiritish ✎" : "Ko'rish";
+                        statusSpan.textContent = canEnterAstatkaValues() ? "Kiritish ✎" : "Ko'rish";
                         actionsDiv.appendChild(statusSpan);
                     }
                     card.appendChild(actionsDiv);
 
-                    if (!canEdit && window.currentLoggedInUser && (window.currentLoggedInUser.role === 'Meneger' || window.currentLoggedInUser.isDirector)) {
-                        card.onclick = () => openAstatkaModal(prodName);
+                    if (!canEdit && canEnterAstatkaValues()) {
+                        card.onclick = () => openAstatkaModal(prodName, 'ombor');
                     }
                     container.appendChild(card);
                 });
@@ -1739,6 +1986,8 @@
             monthStr = monthStr || todayStr().slice(0, 7);
 
             const container = document.getElementById('astatka-main-container');
+            const astEditBtnH = document.getElementById('astatka-edit-toggle-btn');
+            if (astEditBtnH) astEditBtnH.style.display = 'none';
 
             let toolbarHtml = `
                 <div class="employee-card" style="flex-direction: column; align-items: stretch; cursor: default; gap: 10px;">
@@ -1860,6 +2109,8 @@
             monthStr = monthStr || todayStr().slice(0, 7);
 
             const container = document.getElementById('astatka-main-container');
+            const astEditBtnO = document.getElementById('astatka-edit-toggle-btn');
+            if (astEditBtnO) astEditBtnO.style.display = 'none';
 
             let toolbarHtml = `
                 <div class="employee-card" style="flex-direction: column; align-items: stretch; cursor: default; gap: 10px;">
@@ -1889,13 +2140,13 @@
             function getAggregatedData(prodName) {
                 if (mode === 'daily') {
                     let rec = window.dailyRecords[dateStr];
-                    return (rec && rec.savedValues[prodName]) || { keldi: 0, kechgi: 0, ishlatildi: 0, unit: 'dona' };
+                    return (rec && rec.omborSavedValues && rec.omborSavedValues[prodName]) || { keldi: 0, kechgi: 0, ishlatildi: 0, unit: 'dona' };
                 } else {
                     let sum = { keldi: 0, kechgi: 0, ishlatildi: 0, unit: 'dona' };
                     let found = false;
                     Object.keys(window.dailyRecords).forEach(dKey => {
                         if (dKey.slice(0, 7) === monthStr) {
-                            let d = window.dailyRecords[dKey].savedValues[prodName];
+                            let d = window.dailyRecords[dKey].omborSavedValues && window.dailyRecords[dKey].omborSavedValues[prodName];
                             if (d) {
                                 found = true;
                                 sum.keldi += parseFloat(d.keldi || 0);
@@ -1966,6 +2217,8 @@
         function renderSkladView() {
             if (!window.currentLoggedInUser || !window.currentLoggedInUser.isDirector) return;
             const container = document.getElementById('astatka-main-container');
+            const astEditBtnS = document.getElementById('astatka-edit-toggle-btn');
+            if (astEditBtnS) astEditBtnS.style.display = 'none';
             container.innerHTML = `<button class="action-btn" style="margin-bottom:15px;" onclick="openAddProductModal()">+ Yangi tovar qo'shish</button>`;
 
             window.skladFlatRefs = []; // {type:'product'|'subcat', catName, subName, prodIndex}
@@ -2137,17 +2390,20 @@
             }
         }
 
-        window.openAstatkaModal = function(prodName) {
+        window.openAstatkaModal = function(prodName, source) {
+            window.astatkaModalSource = source || 'astatka';
             window.activeProductKey = prodName;
             document.getElementById('astatka-modal-title').textContent = prodName;
-            let todaySavedValues = ensureDailyRecord(todayStr()).savedValues;
+            let isOmbor = window.astatkaModalSource === 'ombor';
+            let todaySavedValues = isOmbor ? ensureDailyRecord(todayStr()).omborSavedValues : ensureDailyRecord(todayStr()).savedValues;
+            let currentMode = isOmbor ? window.currentOmborMode : window.currentMainCategory;
             let data = todaySavedValues[prodName] || { keldi: '0', kechgi: '0', unit: 'dona' };
             window.astCalcVals = { keldi: data.keldi || '0', kechgi: data.kechgi || '0' };
             document.getElementById('ast-unit-select').value = data.unit || 'dona';
 
             const calcCont = document.getElementById('astatka-calc-container');
             
-            if (window.currentMainCategory === 'kelgan') {
+            if (currentMode === 'kelgan') {
                 window.astActiveField = 'keldi';
                 calcCont.innerHTML = `
                     <div class="calc-wrapper">
@@ -2226,12 +2482,14 @@
         }
 
         window.saveAstatkaValue = async function() {
-            let todaySavedValues = ensureDailyRecord(todayStr()).savedValues;
+            let isOmbor = window.astatkaModalSource === 'ombor';
+            let todaySavedValues = isOmbor ? ensureDailyRecord(todayStr()).omborSavedValues : ensureDailyRecord(todayStr()).savedValues;
+            let currentMode = isOmbor ? window.currentOmborMode : window.currentMainCategory;
             let existingData = todaySavedValues[window.activeProductKey] || { keldi: '0', kechgi: '0', unit: 'dona' };
             
-            if (window.currentMainCategory === 'kelgan') {
+            if (currentMode === 'kelgan') {
                 existingData.keldi = window.astCalcVals.keldi;
-            } else if (window.currentMainCategory === 'astatka') {
+            } else if (currentMode === 'astatka') {
                 existingData.kechgi = window.astCalcVals.kechgi;
             }
 
@@ -2249,8 +2507,14 @@
             
             await window.saveToFirestore();
             window.closeAstatkaModal();
-            if (window.currentAstView === 'products') {
-                renderAstatkaProducts(window.selectedCategoryKey);
+            if (isOmbor) {
+                if (window.currentOmborView === 'products') {
+                    renderOmborProducts(window.selectedOmborCategoryKey);
+                }
+            } else {
+                if (window.currentAstView === 'products') {
+                    renderAstatkaProducts(window.selectedCategoryKey);
+                }
             }
         }
 
@@ -2397,6 +2661,11 @@
             await window.saveToFirestore();
             window.closeEmpPasswordModal();
             alert("Parol muvaffaqiyatli almashtirildi!");
+        }
+
+        // ================= PROFIL: TELEGRAM WEB'NI OCHISH (HAMMA FOYDALANUVCHI UCHUN) =================
+        window.openMyTelegram = function() {
+            window.open('https://web.telegram.org/', '_blank');
         }
 
         // ================= PROFIL: TELEFON VA STAVKA (XODIM O'ZI KIRITADI) =================
